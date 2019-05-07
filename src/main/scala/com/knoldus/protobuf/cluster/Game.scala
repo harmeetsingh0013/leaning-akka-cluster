@@ -40,7 +40,7 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(21, 22, 23, 24, 25),
             stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
             RewardsPoint(self)
-        ).initCause(ModelManagerException()))
+        ).initCause(ModelManagerException(info = "is it working fine", cause = new RuntimeException(" I am nested exception "))))
 
         /*pingPong ! GameMessage(
             msg = "Ding",

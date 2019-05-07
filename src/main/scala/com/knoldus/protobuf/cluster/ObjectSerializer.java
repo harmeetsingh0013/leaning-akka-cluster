@@ -21,7 +21,7 @@ public class ObjectSerializer {
             return (Throwable) in.readObject();
         }catch (Exception ex) {
             ex.printStackTrace();
-            return null;
+            return new Throwable("EXCEPTION_DESERIALIZATION_FAILS");
         }
     }
 }

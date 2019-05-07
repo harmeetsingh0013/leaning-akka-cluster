@@ -30,7 +30,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
     private JavaTransformerUtility() {
     }
 
-    public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData, byte[] cause) throws Exception {
+    public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData, Throwable cause) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
             throw new TransformerUtilityException(protoClass.getCanonicalName() + " class doesn't contains only one constructor", null);
@@ -48,7 +48,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         }
     }
 
-    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system, byte[] cause) throws Exception {
+    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system, Throwable cause) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
 
         List<Object> fromClassData = Arrays.stream(from.getDeclaredFields())
@@ -95,7 +95,8 @@ public class JavaTransformerUtility implements ReflectionUtility {
             try {
                 to.getDeclaredField("cause");
                 if(cause != null){
-                    fromClassData.add(Option.apply(new ThrowableProto(ByteString.copyFrom(cause))));
+                    byte[] causeBytes = ObjectSerializer.serializeThrowableUsingJavaSerializable(cause);
+                    fromClassData.add(Option.apply(new ThrowableProto(ByteString.copyFrom(causeBytes))));
                 }else {
                     fromClassData.add(Option.apply(null));
                 }
@@ -108,7 +109,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         return protoClassConstructor.newInstance(fromClassData.toArray());
     }
 
-    private static Object extractValueFromField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, byte[] cause) {
+    private static Object extractValueFromField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, Throwable cause) {
         field.setAccessible(true);
         Object value = extractValueFromPrimitiveField(field, data);
         if (value == null) {
@@ -151,7 +152,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         }
     }
 
-    private static Object extractValueFromObjectField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, byte[] cause) {
+    private static Object extractValueFromObjectField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, Throwable cause) {
         if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
@@ -181,7 +182,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         }
     }
 
-    private static Object resolveNestedObjects(Object value, ExtendedActorSystem system, byte[] cause) {
+    private static Object resolveNestedObjects(Object value, ExtendedActorSystem system, Throwable cause) {
         String valueClassName = value.getClass().getCanonicalName();
         try {
             if (valueClassName.endsWith(PROTO_SUFFIX)) {
@@ -236,7 +237,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         }
     }
 
-    private static Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system, byte[] cause) {
+    private static Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system, Throwable cause) {
 
         Collection<?> collection = JavaConverters.asJavaCollection(seqOfData);
         return collection.stream()
@@ -244,13 +245,13 @@ public class JavaTransformerUtility implements ReflectionUtility {
                 .iterator();
     }
 
-    private static Option evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system, byte[] cause) {
+    private static Option evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system, Throwable cause) {
 
         Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
         return fieldValue.map(optionValue -> resolveContainerTypeData(field, optionValue, system, cause));
     }
 
-    private static Object resolveContainerTypeData(Field field, Object containerData, ExtendedActorSystem system, byte[] cause) {
+    private static Object resolveContainerTypeData(Field field, Object containerData, ExtendedActorSystem system, Throwable cause) {
         if (isPrimitive(containerData.getClass().getTypeName())) {
             return containerData;
         } else if (containerData instanceof ActorRef) {
